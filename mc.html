@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>tatilim sepette</title>
+  <title>Tatilim Sepette - Lüks Villa Kiralama</title>
+  <link id="siteFavicon" rel="icon" href="" type="image/x-icon">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -12,290 +13,366 @@
       --card-bg: #ffffff;
       --text: #1e293b;
       --border: #e2e8f0;
+      --booked-color: #fee2e2;
+      --available-color: #dcfce7;
+      --pending-color: #e2e8f0;
+      --selected-color: #93c5fd;
+      --selected-border: #2563eb;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding: 20px; }
 
-    header { text-align: center; margin-bottom: 20px; }
-    header h1 { color: #0f172a; margin-bottom: 8px; }
+    header { text-align: center; margin-bottom: 25px; }
+    header h1 { color: #0f172a; margin-bottom: 6px; }
 
-    .search-bar { max-width: 800px; margin: 0 auto 30px auto; background: white; padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .search-group { display: flex; flex-direction: column; gap: 4px; }
-    .search-group label { font-size: 0.85rem; font-weight: bold; color: #475569; }
-    .search-group input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.95rem; }
-    .btn-search { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; align-self: flex-end; }
-    .btn-search:hover { background: #1d4ed8; }
-    .btn-reset { padding: 10px 15px; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; align-self: flex-end; }
+    /* ÜÇLÜ DÜZEN: SOL BANNER | VİLLA LİSTESİ | SAĞ TAKVİM SIDEBAR */
+    .main-layout { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; align-items: flex-start; }
+    
+    /* SOL DİKEY REKLAM BANNERI */
+    .left-banner-container { width: 260px; flex-shrink: 0; }
+    .left-banner-img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); display: none; object-fit: cover; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 
-    .villa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+    .villa-grid { flex: 1; min-width: 280px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+    
     .villa-card { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-    .villa-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .villa-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
     .img-container { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background-color: #cbd5e1; }
     .img-container img { width: 100%; height: 100%; object-fit: cover; }
     .card-info { padding: 16px; text-align: center; }
 
+    /* SAĞ ARAMA TAKVİMİ SIDEBAR */
+    .search-sidebar { width: 320px; flex-shrink: 0; background: white; border-radius: 12px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    
+    /* TAKVİM ÜSTÜ YATAY BANNER GÖRSELİ */
+    .calendar-banner-img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px; display: none; }
+
+    @media (max-width: 1024px) {
+      .main-layout { flex-wrap: wrap; }
+      .left-banner-container { width: 100%; order: 3; }
+      .search-sidebar { width: 100%; order: 1; }
+      .villa-grid { order: 2; }
+    }
+
+    .sidebar-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; color: #0f172a; }
+
+    /* MODAL VE FOTOĞRAF GALERİSİ SLIDER */
     .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
     .modal.active { display: flex; }
     .modal-content { background: white; border-radius: 16px; max-width: 750px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 24px; }
-    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; border: none; background: none; color: #64748b; }
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; border: none; background: none; z-index: 20; }
 
-    .slider { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 20px; cursor: zoom-in; }
-    .slider img { width: 100%; height: 100%; object-fit: cover; }
-    .slider-nav { position: absolute; top: 50%; width: 100%; display: flex; justify-content: space-between; transform: translateY(-50%); padding: 0 10px; }
-    .slider-btn { background: rgba(255,255,255,0.8); border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 18px; }
-    .photo-counter { position: absolute; bottom: 10px; right: 12px; background: rgba(0, 0, 0, 0.6); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; }
-    .zoom-hint { position: absolute; top: 10px; left: 12px; background: rgba(0,0,0,0.5); color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; }
+    .front-slider { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
+    .front-slider img { width: 100%; height: 100%; object-fit: cover; }
+    .slider-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 18px; z-index: 10; }
+    .slider-btn.prev { left: 10px; }
+    .slider-btn.next { right: 10px; }
+    .slider-counter { position: absolute; bottom: 10px; right: 12px; background: rgba(0,0,0,0.6); color: white; padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; }
 
-    /* Tam Ekran Lightbox (Büyük Fotoğraf Modu) */
-    .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 2000; justify-content: center; align-items: center; }
-    .lightbox.active { display: flex; }
-    .lightbox-img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 6px; }
-    .lightbox-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 35px; cursor: pointer; font-weight: bold; }
-    .lightbox-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); color: white; border: none; font-size: 30px; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; }
-    .lightbox-btn:hover { background: rgba(255,255,255,0.4); }
-    .lightbox-btn.prev { left: 20px; }
-    .lightbox-btn.next { right: 20px; }
-
+    /* TAKVİMLER */
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
-    .month-select { padding: 6px 12px; font-size: 1rem; border-radius: 6px; border: 1px solid var(--border); background: #f8fafc; font-weight: bold; color: var(--primary); }
+    .month-select { padding: 6px 12px; font-size: 0.95rem; border-radius: 6px; border: 1px solid var(--border); font-weight: bold; color: var(--primary); width: 100%; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
-    .day-header { font-weight: bold; font-size: 0.8rem; color: #64748b; padding-bottom: 4px; }
-    .day-cell { border: 1px solid var(--border); border-radius: 6px; padding: 6px 2px; background: #f1f5f9; display: flex; flex-direction: column; justify-content: center; min-height: 50px; }
-    .day-cell.empty { background: transparent; border: none; }
-    .day-cell.available { background: #dcfce7; border-color: #86efac; }
-    .day-cell.booked { background: #fee2e2; border-color: #fca5a5; opacity: 0.8; }
-    .day-cell.past { background: #e2e8f0; border-color: #cbd5e1; color: #94a3b8; opacity: 0.6; }
-    .day-num { font-weight: bold; font-size: 0.8rem; }
-    .day-price { font-size: 0.7rem; color: #15803d; margin-top: 2px; font-weight: 600; }
-    .booked .day-price { color: #991b1b; text-decoration: line-through; }
+    .day-header { font-weight: bold; font-size: 0.8rem; color: #64748b; }
+
+    .day-cell { 
+      border: 1px solid var(--border); border-radius: 6px; padding: 6px 2px; background: #f1f5f9; 
+      display: flex; flex-direction: column; justify-content: space-between; min-height: 50px; position: relative; overflow: hidden; cursor: pointer; user-select: none;
+    }
+    .day-cell.available { background: var(--available-color); border-color: #86efac; }
+    .day-cell.booked { background: var(--booked-color); border-color: #fca5a5; cursor: not-allowed; }
+    .day-cell.pending-day { background: var(--pending-color) !important; border-color: #cbd5e1 !important; color: #64748b; }
+    
+    .day-cell.split-checkout {
+      background: linear-gradient(135deg, var(--booked-color) 0%, var(--booked-color) 49%, #cbd5e1 50%, var(--available-color) 51%, var(--available-color) 100%) !important;
+      cursor: pointer !important;
+    }
+
+    /* MÜŞTERİ SEÇİMİNDE GECE KONAKLAMA VE ÇAPRAZ ÇIKIŞ EFEKTİ */
+    .day-cell.selected { background: var(--selected-color) !important; border-color: var(--selected-border) !important; }
+    
+    .day-cell.selected-checkout {
+      background: linear-gradient(135deg, var(--selected-color) 0%, var(--selected-color) 49%, #cbd5e1 50%, var(--available-color) 51%, var(--available-color) 100%) !important;
+      border-color: var(--selected-border) !important;
+    }
+
+    .day-num { font-weight: bold; font-size: 0.8rem; text-align: left; padding-left: 2px; z-index: 2; }
+    .day-price { font-size: 0.65rem; color: #15803d; text-align: right; font-weight: 600; z-index: 2; }
+
+    .booking-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 20px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .form-grid input { padding: 9px 12px; border-radius: 6px; border: 1px solid var(--border); width: 100%; }
+    .btn-submit { width: 100%; padding: 12px; background: #25d366; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+    .btn-submit:hover { background: #128c7e; }
+
+    .btn-share { padding: 6px 12px; background: #e2e8f0; color: #1e293b; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+    .btn-share:hover { background: #cbd5e1; }
+
+    .btn-filter { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 12px; cursor: pointer; }
+    .btn-filter:hover { background: #1d4ed8; }
+    .btn-filter-reset { width: 100%; padding: 8px; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 6px; cursor: pointer; }
+    .btn-filter-reset:hover { background: #475569; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1 id="siteTitle">cıka vilları</h1>
-    <p id="siteSubtitle">Tarihlerinizi seçerek müsait villaları arayın veya kartlara tıklayarak detayları inceleyin.</p>
+    <h1 id="siteTitle">CIKA VİLLALARI</h1>
+    <p id="siteSubtitle">Tarihlerinizi seçerek rezervasyon talebinizi iletebilirsiniz.</p>
   </header>
 
-  <div class="search-bar">
-    <div class="search-group">
-      <label>Giriş Tarihi:</label>
-      <input type="date" id="checkIn">
+  <div class="main-layout">
+    
+    <!-- SOL DİKEY BANNER (GÖRSEL 1) -->
+    <div class="left-banner-container">
+      <img id="siteBanner1" class="left-banner-img" src="" alt="Sol Tanıtım Görseli">
     </div>
-    <div class="search-group">
-      <label>Çıkış Tarihi:</label>
-      <input type="date" id="checkOut">
+
+    <!-- VİLLA LİSTESİ (ORTA ALAN) -->
+    <div class="villa-grid" id="villaGrid"></div>
+
+    <!-- SAĞ MÜSAİTLİK ARAMA PANELİ VE TAKVİM ÜSTÜ BANNER (GÖRSEL 2) -->
+    <div class="search-sidebar">
+      <!-- TAKVİM ÜSTÜ YATAY BANNER -->
+      <img id="siteBanner2" class="calendar-banner-img" src="" alt="Takvim Üstü Görsel">
+
+      <div class="sidebar-title">🔍 Müsait Villa Ara</div>
+      
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 0.85rem; font-weight: bold; color: #64748b; display: block; margin-bottom: 4px;">Ay Seçin:</label>
+        <select id="searchMonthSelect" class="month-select" onchange="renderSearchCalendar()">
+          <option value="0">Ocak</option><option value="1">Şubat</option><option value="2">Mart</option>
+          <option value="3">Nisan</option><option value="4">Mayıs</option><option value="5">Haziran</option>
+          <option value="6">Temmuz</option><option value="7">Ağustos</option><option value="8">Eylül</option>
+          <option value="9">Ekim</option><option value="10">Kasım</option><option value="11">Aralık</option>
+        </select>
+      </div>
+
+      <div class="calendar-grid" id="searchCalendarGrid"></div>
+
+      <div style="font-size: 0.8rem; margin-top: 10px; font-weight: bold; color: #475569;" id="searchRangeText">Tarih aralığı seçin</div>
+      <button class="btn-filter" onclick="filterAvailableVillas()">Müsait Villaları Filtrele</button>
+      <button class="btn-filter-reset" onclick="resetSearchFilter()">Tüm Villaları Göster</button>
     </div>
-    <button class="btn-search" onclick="filterVillas()">Müsait Villaları Ara</button>
-    <button class="btn-reset" onclick="resetFilter()">Tümünü Göster</button>
   </div>
 
-  <div class="villa-grid" id="villaGrid"></div>
-
-  <!-- Detay Modalı -->
+  <!-- VİLLA DETAY VE REZERVASYON MODALI -->
   <div class="modal" id="villaModal">
     <div class="modal-content">
       <button class="close-btn" onclick="closeModal()">&times;</button>
-      <h2 id="modalTitle" style="margin-bottom: 15px;">Villa Detayı</h2>
       
-      <div class="slider" onclick="openLightbox()">
-        <span class="zoom-hint">🔍 Büyütmek için tıklayın</span>
-        <img id="sliderImg" src="" alt="Villa Fotoğrafı">
-        <div class="slider-nav">
-          <button class="slider-btn" onclick="event.stopPropagation(); prevImage();">&#10094;</button>
-          <button class="slider-btn" onclick="event.stopPropagation(); nextImage();">&#10095;</button>
-        </div>
-        <div class="photo-counter" id="photoCounter">1 / 1</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; padding-right: 30px;">
+        <h2 id="modalTitle">Villa Detayı</h2>
+        <button class="btn-share" onclick="copyShareLink()">🔗 Villayı Paylaş</button>
+      </div>
+
+      <!-- Fotoğraf Galerisi (Slider) -->
+      <div class="front-slider">
+        <img id="frontSliderImg" src="" alt="Villa Fotoğrafı">
+        <button class="slider-btn prev" onclick="prevFrontImg()">&#10094;</button>
+        <button class="slider-btn next" onclick="nextFrontImg()">&#10095;</button>
+        <div class="slider-counter" id="frontSliderCounter">1 / 1</div>
       </div>
 
       <div class="calendar-header">
-        <h3>Müsaitlik ve Fiyat Takvimi</h3>
-        <select id="monthSelect" class="month-select" onchange="renderCalendar()">
-          <option value="0">Ocak</option>
-          <option value="1">Şubat</option>
-          <option value="2">Mart</option>
-          <option value="3">Nisan</option>
-          <option value="4">Mayıs</option>
-          <option value="5">Haziran</option>
-          <option value="6">Temmuz</option>
-          <option value="7">Ağustos</option>
-          <option value="8">Eylül</option>
-          <option value="9">Ekim</option>
-          <option value="10">Kasım</option>
-          <option value="11">Aralık</option>
+        <h3>Müsaitlik Takvimi</h3>
+        <select id="monthSelect" class="month-select" style="width: auto;" onchange="renderCalendar()">
+          <option value="0">Ocak</option><option value="1">Şubat</option><option value="2">Mart</option>
+          <option value="3">Nisan</option><option value="4">Mayıs</option><option value="5">Haziran</option>
+          <option value="6">Temmuz</option><option value="7">Ağustos</option><option value="8">Eylül</option>
+          <option value="9">Ekim</option><option value="10">Kasım</option><option value="11">Aralık</option>
         </select>
       </div>
 
       <div class="calendar-grid" id="calendarGrid"></div>
-    </div>
-  </div>
 
-  <!-- Tam Ekran Fotoğraf Galerisi (Lightbox) -->
-  <div class="lightbox" id="lightbox">
-    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-    <button class="lightbox-btn prev" onclick="prevImage()">&#10094;</button>
-    <img id="lightboxImg" class="lightbox-img" src="" alt="Büyük Fotoğraf">
-    <button class="lightbox-btn next" onclick="nextImage()">&#10095;</button>
+      <!-- Rezervasyon Formu -->
+      <div class="booking-section">
+        <h4 style="margin-bottom:10px;">Rezervasyon Talebi Oluştur</h4>
+        <div class="form-grid">
+          <input type="text" id="guestName" placeholder="Adınız Soyadınız">
+          <input type="tel" id="guestPhone" placeholder="Telefon Numarası (05XX...)">
+          <input type="email" id="guestEmail" placeholder="E-Posta Adresi" style="grid-column: span 2;">
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-weight:bold; background:#e2e8f0; padding:10px; border-radius:6px;">
+          <span>Tarihler: <span id="selectedDatesText" style="font-weight:normal; color:#475569;">Takvimden seçin</span></span>
+          <span>Toplam Tutar: <span id="totalPriceText" style="color:var(--primary);">-</span></span>
+        </div>
+        <button class="btn-submit" onclick="submitReservation()">WhatsApp ile Talep Gönder</button>
+      </div>
+    </div>
   </div>
 
   <script>
     const SUPABASE_URL = "https://byrqvvmmlhphgseffsnw.supabase.co";
     const SUPABASE_KEY = "sb_publishable_-arKg5KsDGMPQUNOp90qNg_Vu2CCTi3";
+    const MY_WHATSAPP_NUMBER = "905332016490"; 
+
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let villas = [];
+    let reservations = [];
     let activeVilla = null;
-    let currentImageIndex = 0;
+    let activePhotoIndex = 0;
+    
+    let selectedStartDate = null;
+    let selectedEndDate = null;
+
+    let searchStart = null;
+    let searchEnd = null;
+
+    async function init() {
+      await loadSiteHeader();
+      await loadVillas();
+      await loadReservations();
+
+      document.getElementById('searchMonthSelect').value = new Date().getMonth();
+      renderSearchCalendar();
+
+      checkUrlHash();
+    }
 
     async function loadSiteHeader() {
       const { data } = await _supabase.from('site_settings').select('*').eq('id', 1).single();
       if (data) {
         if (data.title) document.getElementById('siteTitle').innerText = data.title;
         if (data.subtitle) document.getElementById('siteSubtitle').innerText = data.subtitle;
+        if (data.favicon) document.getElementById('siteFavicon').href = data.favicon;
+
+        if (data.banner1) {
+          const b1 = document.getElementById('siteBanner1');
+          b1.src = data.banner1;
+          b1.style.display = 'block';
+        }
+        if (data.banner2) {
+          const b2 = document.getElementById('siteBanner2');
+          b2.src = data.banner2;
+          b2.style.display = 'block';
+        }
       }
     }
 
     async function loadVillas() {
-      const { data, error } = await _supabase.from('villas').select('*');
-      if (error) return console.error(error);
+      const { data } = await _supabase.from('villas').select('*');
       villas = data || [];
       renderVillaGrid(villas);
     }
 
-    function renderVillaGrid(listToRender) {
+    async function loadReservations() {
+      const { data } = await _supabase.from('reservations').select('*').neq('status', 'Reddedildi');
+      reservations = data || [];
+    }
+
+    function renderVillaGrid(list) {
       const grid = document.getElementById('villaGrid');
       grid.innerHTML = '';
-
-      if (listToRender.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 40px;">Aradığınız tarihler arasında müsait villa bulunamadı.</div>`;
+      if (!list || list.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; background:white; border-radius:12px; border:1px solid #e2e8f0; color:#64748b; font-weight:bold;">Seçilen tarihlerde müsait villa bulunamadı.</div>';
         return;
       }
-
-      listToRender.forEach(v => {
+      list.forEach(v => {
         const card = document.createElement('div');
         card.className = 'villa-card';
         card.onclick = () => openModal(v.id);
         const imgUrl = (v.images && v.images.length > 0) ? v.images[0] : 'https://via.placeholder.com/600x450';
         card.innerHTML = `
-          <div class="img-container">
-            <img src="${imgUrl}" alt="${v.name}">
-          </div>
-          <div class="card-info">
-            <h3>${v.name}</h3>
-            <p>${v.tagline || ''}</p>
-          </div>
+          <div class="img-container"><img src="${imgUrl}" alt="${v.name}"></div>
+          <div class="card-info"><h3>${v.name}</h3><p>${v.tagline || ''}</p></div>
         `;
         grid.appendChild(card);
       });
     }
 
-    function filterVillas() {
-      const checkInVal = document.getElementById('checkIn').value;
-      const checkOutVal = document.getElementById('checkOut').value;
-
-      if (!checkInVal || !checkOutVal) {
-        alert("Lütfen hem giriş hem çıkış tarihini seçin.");
-        return;
+    function checkUrlHash() {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith('#villa-')) {
+        const vId = parseInt(hash.replace('#villa-', ''));
+        if (vId) openModal(vId);
       }
-
-      const start = new Date(checkInVal);
-      const end = new Date(checkOutVal);
-
-      if (start >= end) {
-        alert("Çıkış tarihi giriş tarihinden sonra olmalıdır.");
-        return;
-      }
-
-      const availableVillas = villas.filter(v => {
-        let cur = new Date(start);
-        while (cur < end) {
-          const m = cur.getMonth();
-          const d = cur.getDate();
-
-          const monthData = v.prices ? v.prices[m] : null;
-          if (monthData && monthData.customDays && monthData.customDays[d]) {
-            if (monthData.customDays[d].available === false) {
-              return false;
-            }
-          }
-          cur.setDate(cur.getDate() + 1);
-        }
-        return true;
-      });
-
-      renderVillaGrid(availableVillas);
-    }
-
-    function resetFilter() {
-      document.getElementById('checkIn').value = "";
-      document.getElementById('checkOut').value = "";
-      renderVillaGrid(villas);
     }
 
     function openModal(id) {
       activeVilla = villas.find(v => v.id === id);
-      currentImageIndex = 0;
+      if (!activeVilla) return;
+
+      activePhotoIndex = 0;
+      selectedStartDate = null;
+      selectedEndDate = null;
+      
       document.getElementById('modalTitle').innerText = activeVilla.name;
       document.getElementById('monthSelect').value = new Date().getMonth();
+      document.getElementById('guestName').value = "";
+      document.getElementById('guestPhone').value = "";
+      document.getElementById('guestEmail').value = "";
+      document.getElementById('selectedDatesText').innerText = "Takvimden seçin";
+      document.getElementById('totalPriceText').innerText = "-";
       
-      updateSlider();
+      updateFrontSlider();
       renderCalendar();
       document.getElementById('villaModal').classList.add('active');
+      window.location.hash = `#villa-${activeVilla.id}`;
     }
 
     function closeModal() {
       document.getElementById('villaModal').classList.remove('active');
+      history.pushState("", document.title, window.location.pathname + window.location.search);
     }
 
-    function updateSlider() {
-      if (!activeVilla.images || activeVilla.images.length === 0) return;
-      const currentUrl = activeVilla.images[currentImageIndex];
-      document.getElementById('sliderImg').src = currentUrl;
-      document.getElementById('lightboxImg').src = currentUrl;
-      document.getElementById('photoCounter').innerText = `${currentImageIndex + 1} / ${activeVilla.images.length}`;
+    function copyShareLink() {
+      const url = `${window.location.origin}${window.location.pathname}#villa-${activeVilla.id}`;
+      navigator.clipboard.writeText(url);
+      alert("Villa özel bağlantısı kopyalandı:\n" + url);
     }
 
-    function nextImage() {
-      if (!activeVilla.images || !activeVilla.images.length) return;
-      currentImageIndex = (currentImageIndex + 1) % activeVilla.images.length;
-      updateSlider();
-    }
-
-    function prevImage() {
-      if (!activeVilla.images || !activeVilla.images.length) return;
-      currentImageIndex = (currentImageIndex - 1 + activeVilla.images.length) % activeVilla.images.length;
-      updateSlider();
-    }
-
-    // Lightbox İşlemleri
-    function openLightbox() {
-      if (!activeVilla.images || !activeVilla.images.length) return;
-      document.getElementById('lightbox').classList.add('active');
-    }
-
-    function closeLightbox() {
-      document.getElementById('lightbox').classList.remove('active');
-    }
-
-    // Klavyedeki yön tuşları ile fotoğrafları ve tam ekranı kontrol etme
-    document.addEventListener('keydown', function(e) {
-      const isLightboxActive = document.getElementById('lightbox').classList.contains('active');
-      if (isLightboxActive) {
-        if (e.key === 'ArrowRight') nextImage();
-        if (e.key === 'ArrowLeft') prevImage();
-        if (e.key === 'Escape') closeLightbox();
+    /* GALERİ SLIDER */
+    function updateFrontSlider() {
+      const imgElem = document.getElementById('frontSliderImg');
+      const counterElem = document.getElementById('frontSliderCounter');
+      if (!activeVilla.images || activeVilla.images.length === 0) {
+        imgElem.src = 'https://via.placeholder.com/600x450?text=Fotoğraf+Yok';
+        counterElem.innerText = '0 / 0';
+        return;
       }
-    });
+      imgElem.src = activeVilla.images[activePhotoIndex];
+      counterElem.innerText = `${activePhotoIndex + 1} / ${activeVilla.images.length}`;
+    }
+
+    function nextFrontImg() {
+      if (!activeVilla.images || !activeVilla.images.length) return;
+      activePhotoIndex = (activePhotoIndex + 1) % activeVilla.images.length;
+      updateFrontSlider();
+    }
+
+    function prevFrontImg() {
+      if (!activeVilla.images || !activeVilla.images.length) return;
+      activePhotoIndex = (activePhotoIndex - 1 + activeVilla.images.length) % activeVilla.images.length;
+      updateFrontSlider();
+    }
+
+    /* MÜSAİTLİK TAKVİMİ REZERVASYON DURUMU HESAPLAMA */
+    function getDayReservationStatus(villaId, year, monthIndex, day) {
+      const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      let isApprovedStay = false, isApprovedCheckout = false, isPendingStay = false;
+
+      const activeRes = reservations.filter(r => r.villa_id == villaId);
+      
+      activeRes.forEach(r => {
+        if (r.status === 'Onaylandı') {
+          if (dateStr >= r.check_in && dateStr < r.check_out) isApprovedStay = true;
+          if (dateStr === r.check_out) isApprovedCheckout = true;
+        } else if (r.status === 'Beklemede') {
+          if (dateStr >= r.check_in && dateStr < r.check_out) isPendingStay = true;
+        }
+      });
+
+      return { isApprovedStay, isApprovedCheckout, isPendingStay };
+    }
 
     function renderCalendar() {
       const calGrid = document.getElementById('calendarGrid');
       calGrid.innerHTML = '';
 
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth();
-      const currentDay = now.getDate();
+      const currentYear = new Date().getFullYear();
       const selectedMonthIndex = parseInt(document.getElementById('monthSelect').value);
 
       const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -319,25 +396,294 @@
       const monthPrices = (activeVilla.prices && activeVilla.prices[selectedMonthIndex]) ? activeVilla.prices[selectedMonthIndex] : { defaultPrice: "-", customDays: {} };
 
       for (let day = 1; day <= totalDays; day++) {
-        let isPast = (selectedMonthIndex < currentMonth) || (selectedMonthIndex === currentMonth && day < currentDay);
+        const thisDate = new Date(currentYear, selectedMonthIndex, day);
         const customInfo = monthPrices.customDays ? monthPrices.customDays[day] : null;
-        const price = customInfo ? customInfo.price : (monthPrices.defaultPrice || "Fiyat Yok");
-        const available = customInfo ? customInfo.available : true;
+        const priceStr = customInfo ? customInfo.price : (monthPrices.defaultPrice || "Fiyat Yok");
+        const manualAvailable = customInfo ? customInfo.available : true;
+
+        const { isApprovedStay, isApprovedCheckout, isPendingStay } = getDayReservationStatus(activeVilla.id, currentYear, selectedMonthIndex, day);
 
         const cell = document.createElement('div');
-        if (isPast) {
-          cell.className = 'day-cell past';
-          cell.innerHTML = `<span class="day-num">${day}</span><span class="day-price">Geçti</span>`;
+        let classes = ['day-cell'];
+
+        // Durum Tespiti
+        if (isApprovedCheckout && !isApprovedStay) {
+          classes.push('split-checkout');
+        } else if (isApprovedStay || !manualAvailable) {
+          classes.push('booked');
+        } else if (isPendingStay) {
+          classes.push('pending-day');
         } else {
-          cell.className = `day-cell ${available ? 'available' : 'booked'}`;
-          cell.innerHTML = `<span class="day-num">${day}</span><span class="day-price">${available ? price : 'Dolu'}</span>`;
+          classes.push('available');
         }
+
+        // Müşterinin ekrandan tarih seçme görseli (Çapraz Seçim Dahil)
+        let isStay = false;
+        let isCheckoutDate = false;
+
+        if (selectedStartDate && !selectedEndDate) {
+          if (thisDate.getTime() === selectedStartDate.getTime()) isStay = true;
+        } else if (selectedStartDate && selectedEndDate) {
+          if (thisDate >= selectedStartDate && thisDate < selectedEndDate) isStay = true;
+          if (thisDate.getTime() === selectedEndDate.getTime()) isCheckoutDate = true;
+        }
+
+        if (isStay) {
+          classes.push('selected');
+        } else if (isCheckoutDate) {
+          classes.push('selected-checkout'); // Çapraz Mavi Görünüm
+        }
+
+        cell.className = classes.join(' ');
+        
+        let labelPrice = priceStr;
+        if (isPendingStay && !isApprovedStay) labelPrice = "Opsiyonlu";
+        if (isApprovedStay) labelPrice = "Dolu";
+        if (isApprovedCheckout && !isApprovedStay) labelPrice = "Çıkışlı";
+
+        cell.innerHTML = `<span class="day-num">${day}</span><span class="day-price">${labelPrice}</span>`;
+
+        if (!isApprovedStay && manualAvailable) {
+          cell.onclick = () => handleDateClick(currentYear, selectedMonthIndex, day);
+        }
+
         calGrid.appendChild(cell);
       }
     }
 
-    loadSiteHeader();
-    loadVillas();
+    function handleDateClick(year, month, day) {
+      const clicked = new Date(year, month, day);
+
+      if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+        selectedStartDate = clicked;
+        selectedEndDate = null;
+      } else {
+        if (clicked > selectedStartDate) {
+          let hasBlockedNight = false;
+          let temp = new Date(selectedStartDate);
+          while (temp < clicked) {
+            const status = getDayReservationStatus(activeVilla.id, temp.getFullYear(), temp.getMonth(), temp.getDate());
+            if (status.isApprovedStay) {
+              hasBlockedNight = true;
+              break;
+            }
+            temp.setDate(temp.getDate() + 1);
+          }
+
+          if (hasBlockedNight) {
+            alert("Seçtiğiniz tarihler arasında dolu geceler bulunmaktadır. Lütfen müsait bir aralık seçin.");
+            selectedStartDate = clicked;
+            selectedEndDate = null;
+          } else {
+            selectedEndDate = clicked;
+          }
+        } else {
+          selectedStartDate = clicked;
+          selectedEndDate = null;
+        }
+      }
+
+      const formatDate = (d) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+      const datesText = document.getElementById('selectedDatesText');
+      const priceText = document.getElementById('totalPriceText');
+
+      if (selectedStartDate && selectedEndDate) {
+        datesText.innerText = `${formatDate(selectedStartDate)} - ${formatDate(selectedEndDate)} (Öğlen Çıkış)`;
+        
+        let total = 0;
+        let cur = new Date(selectedStartDate);
+        while (cur < selectedEndDate) {
+          total += getDayPriceNumber(activeVilla, cur.getMonth(), cur.getDate());
+          cur.setDate(cur.getDate() + 1);
+        }
+        priceText.innerText = total.toLocaleString('tr-TR') + " TL";
+      } else if (selectedStartDate) {
+        datesText.innerText = `${formatDate(selectedStartDate)} (Çıkış Seçin)`;
+        priceText.innerText = "-";
+      }
+
+      renderCalendar();
+    }
+
+    function getDayPriceNumber(villa, month, day) {
+      const monthPrices = villa.prices ? villa.prices[month] : null;
+      if (!monthPrices) return 0;
+      const customInfo = monthPrices.customDays ? monthPrices.customDays[day] : null;
+      const priceStr = customInfo ? customInfo.price : (monthPrices.defaultPrice || "0");
+      const num = parseInt(priceStr.toString().replace(/[^0-9]/g, ''));
+      return isNaN(num) ? 0 : num;
+    }
+
+    /* ARAMA FİLTRESİ (SAĞ SIDEBAR) */
+    function renderSearchCalendar() {
+      const grid = document.getElementById('searchCalendarGrid');
+      grid.innerHTML = '';
+
+      const currentYear = new Date().getFullYear();
+      const monthIndex = parseInt(document.getElementById('searchMonthSelect').value);
+
+      const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      days.forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'day-header';
+        h.innerText = d;
+        grid.appendChild(h);
+      });
+
+      const totalDays = new Date(currentYear, monthIndex + 1, 0).getDate();
+      let firstDayIndex = new Date(currentYear, monthIndex, 1).getDay();
+      firstDayIndex = (firstDayIndex === 0) ? 6 : firstDayIndex - 1;
+
+      for (let i = 0; i < firstDayIndex; i++) {
+        grid.appendChild(document.createElement('div'));
+      }
+
+      for (let day = 1; day <= totalDays; day++) {
+        const thisDate = new Date(currentYear, monthIndex, day);
+        const cell = document.createElement('div');
+        cell.className = 'day-cell available';
+        
+        let isStay = false;
+        let isCheckout = false;
+
+        if (searchStart && !searchEnd && thisDate.getTime() === searchStart.getTime()) isStay = true;
+        if (searchStart && searchEnd) {
+          if (thisDate >= searchStart && thisDate < searchEnd) isStay = true;
+          if (thisDate.getTime() === searchEnd.getTime()) isCheckout = true;
+        }
+
+        if (isStay) {
+          cell.className += ' selected';
+        } else if (isCheckout) {
+          cell.className += ' selected-checkout';
+        }
+
+        cell.innerHTML = `<span class="day-num">${day}</span>`;
+        cell.onclick = () => handleSearchDayClick(currentYear, monthIndex, day);
+        grid.appendChild(cell);
+      }
+    }
+
+    function handleSearchDayClick(year, month, day) {
+      const clicked = new Date(year, month, day);
+      if (!searchStart || (searchStart && searchEnd)) {
+        searchStart = clicked;
+        searchEnd = null;
+      } else {
+        if (clicked > searchStart) {
+          searchEnd = clicked;
+        } else {
+          searchStart = clicked;
+          searchEnd = null;
+        }
+      }
+
+      const formatDate = (d) => `${d.getDate()}.${d.getMonth() + 1}`;
+      const statusText = document.getElementById('searchRangeText');
+
+      if (searchStart && searchEnd) {
+        statusText.innerText = `Seçilen: ${formatDate(searchStart)} - ${formatDate(searchEnd)} (Çıkış)`;
+      } else if (searchStart) {
+        statusText.innerText = `Giriş: ${formatDate(searchStart)} (Çıkış Seçin)`;
+      }
+
+      renderSearchCalendar();
+    }
+
+    function filterAvailableVillas() {
+      if (!searchStart || !searchEnd) {
+        alert("Lütfen arama takviminden giriş ve çıkış tarihini seçin.");
+        return;
+      }
+
+      const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const sInStr = formatDateStr(searchStart);
+      const sOutStr = formatDateStr(searchEnd);
+
+      const availableList = villas.filter(v => {
+        const hasReservationOverlap = reservations.some(r => {
+          if (r.villa_id == v.id && r.status === 'Onaylandı') {
+            return (sInStr < r.check_out && sOutStr > r.check_in);
+          }
+          return false;
+        });
+
+        if (hasReservationOverlap) return false;
+
+        let cur = new Date(searchStart);
+        while (cur < searchEnd) {
+          const mIdx = cur.getMonth();
+          const dNum = cur.getDate();
+
+          if (v.prices && v.prices[mIdx] && v.prices[mIdx].customDays && v.prices[mIdx].customDays[dNum]) {
+            if (v.prices[mIdx].customDays[dNum].available === false) {
+              return false;
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        return true;
+      });
+
+      renderVillaGrid(availableList);
+    }
+
+    function resetSearchFilter() {
+      searchStart = null;
+      searchEnd = null;
+      document.getElementById('searchRangeText').innerText = "Tarih aralığı seçin";
+      renderSearchCalendar();
+      renderVillaGrid(villas);
+    }
+
+    async function submitReservation() {
+      const name = document.getElementById('guestName').value.trim();
+      const phone = document.getElementById('guestPhone').value.trim();
+      const email = document.getElementById('guestEmail').value.trim();
+
+      if (!selectedStartDate || !selectedEndDate) return alert("Lütfen takvimden giriş ve çıkış tarihini seçin.");
+      if (!name || !phone) return alert("Lütfen ad, soyad ve telefon bilgilerinizi eksiksiz yazın.");
+
+      const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const inStr = formatDate(selectedStartDate);
+      const outStr = formatDate(selectedEndDate);
+      const totalPriceStr = document.getElementById('totalPriceText').innerText;
+
+      const { error } = await _supabase.from('reservations').insert([{
+        villa_id: activeVilla.id,
+        villa_name: activeVilla.name,
+        guest_name: name,
+        guest_phone: phone,
+        guest_email: email,
+        check_in: inStr,
+        check_out: outStr,
+        total_price: totalPriceStr,
+        status: 'Beklemede',
+        created_at: new Date().toISOString()
+      }]);
+
+      if (error) {
+        alert("Kaydedilirken hata oluştu: " + error.message);
+        return;
+      }
+
+      const msg = `Merhaba, ${activeVilla.name} için yeni rezervasyon talebim var:%0A%0A` +
+                  `👤 *Müşteri:* ${name}%0A` +
+                  `📞 *Telefon:* ${phone}%0A` +
+                  `✉️ *E-Posta:* ${email || '-'}%0A` +
+                  `📅 *Giriş Tarihi:* ${inStr}%0A` +
+                  `📅 *Çıkış Tarihi:* ${outStr} (Öğlen)%0A` +
+                  `💰 *Hesaplanan Tutar:* ${totalPriceStr}`;
+
+      window.open(`https://wa.me/${MY_WHATSAPP_NUMBER}?text=${msg}`, '_blank');
+      closeModal();
+      alert("Talebiniz iletildi! Yöneticimiz inceleyip dönüş yapacaktır.");
+      await loadReservations();
+      renderCalendar();
+    }
+
+    init();
   </script>
 </body>
 </html>
